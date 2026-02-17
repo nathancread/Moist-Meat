@@ -1,0 +1,5 @@
+firebase-admin
+pandas
+plotly
+# Optional (for static PNG export):
+kaleido
