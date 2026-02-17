@@ -1,0 +1,9 @@
+[project]
+name = "moist-meat"
+version = "0.1.0"
+dependencies = [
+    "firebase-admin",
+    "pandas",
+    "plotly",
+    "kaleido",
+]
