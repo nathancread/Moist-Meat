@@ -25,6 +25,12 @@ DB_REF_PATH = "/sensors/device1"
 SERVICE_ACCOUNT = "moist-meat-monitor-firebase-adminsdk-fbsvc-a2be73f4d8.json"
 DATABASE_URL = "https://moist-meat-monitor-default-rtdb.firebaseio.com/"
 
+EPOCH_MS_THRESHOLD = 1e11
+MIN_VALID_YEAR = 2000
+DEFAULT_TIME_RANGE_DAYS = 1
+QUERY_BUFFER_MINUTES = 30
+DEFAULT_TZ = "America/Chicago"
+
 
 @dataclass
 class Reading:
@@ -44,24 +50,33 @@ def init_firebase():
 
 
 def parse_timestamp(ts: str) -> datetime | None:
-    """Parse timestamp from epoch (s/ms) or ISO format."""
-    try:
+    """Parse timestamp from epoch (s/ms) or string format."""
+    ts = ts.strip()
+    if not ts:
+        return None
+
+    if ts.replace(".", "", 1).isdigit() or (
+        ts.count(".") == 1 and ts.split(".")[0].isdigit()
+    ):
         ts_num = float(ts)
-        if ts_num > 1e11:
+        if ts_num > EPOCH_MS_THRESHOLD:
             return datetime.fromtimestamp(ts_num / 1000.0, tz=timezone.utc)
         return datetime.fromtimestamp(ts_num, tz=timezone.utc)
-    except ValueError:
-        pass
 
-    try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00"))
-    except ValueError:
-        pass
+    if "T" in ts or ts.endswith("Z"):
+        ts_iso = ts.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(ts_iso)
+        return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
 
-    try:
-        return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
+    if " " in ts:
+        try:
+            return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").replace(
+                tzinfo=timezone.utc
+            )
+        except ValueError:
+            pass
+
+    return None
 
 
 def parse_cli_timestamp(
@@ -89,6 +104,11 @@ def fetch_data(
     verbose: bool = False,
 ) -> list[Reading]:
     """Fetch sensor data from Firebase, optionally filtered by time range."""
+    if start_dt is None and end_dt is None:
+        now = datetime.now(timezone.utc)
+        start_dt = now - timedelta(days=DEFAULT_TIME_RANGE_DAYS)
+        end_dt = now
+
     ref = db.reference(DB_REF_PATH)
     raw = cast(dict, ref.get())
     if not raw:
@@ -107,8 +127,13 @@ def fetch_data(
             continue
 
         ts_dt = parse_timestamp(str(ts))
-        if ts_dt is None or ts_dt.year < 2000:
+        if ts_dt is None or ts_dt.year < MIN_VALID_YEAR:
             skipped += 1
+            continue
+
+        if start_dt is not None and ts_dt < start_dt:
+            continue
+        if end_dt is not None and ts_dt > end_dt:
             continue
 
         rows.append(
@@ -120,30 +145,13 @@ def fetch_data(
             )
         )
 
-    if not rows:
-        return []
-
     rows.sort(key=lambda r: r.timestamp)
 
     if verbose:
-        first, last = rows[0].timestamp, rows[-1].timestamp
-        print(f"Fetched {len(rows)} rows. Range: {first} -> {last}")
+        print(
+            f"Fetched {len(rows)} rows. Range: {rows[0].timestamp} -> {rows[-1].timestamp}"
+        )
         print(f"Skipped {skipped} entries with invalid timestamps")
-
-    if start_dt is None and end_dt is None:
-        now = datetime.now(timezone.utc)
-        start_dt = now - timedelta(days=1)
-        end_dt = now
-
-    if start_dt is not None:
-        rows = [r for r in rows if r.timestamp >= start_dt]
-    if end_dt is not None:
-        rows = [r for r in rows if r.timestamp <= end_dt]
-
-    if verbose:
-        print(f"Rows after filtering: {len(rows)}")
-        if rows:
-            print(f"Filtered range: {rows[0].timestamp} -> {rows[-1].timestamp}")
 
     return rows
 
@@ -155,9 +163,7 @@ def get_latest_reading() -> tuple | None:
     if not raw:
         return None
 
-    latest = None
-    latest_dt = None
-
+    valid_entries = []
     for key, entry in raw.items():
         if not isinstance(entry, dict):
             continue
@@ -165,13 +171,13 @@ def get_latest_reading() -> tuple | None:
         if ts is None:
             continue
         ts_dt = parse_timestamp(str(ts))
-        if ts_dt is None:
-            continue
-        if latest_dt is None or ts_dt > latest_dt:
-            latest_dt = ts_dt
-            latest = (key, entry, ts_dt)
+        if ts_dt is not None:
+            valid_entries.append((key, entry, ts_dt))
 
-    return latest
+    if not valid_entries:
+        return None
+
+    return max(valid_entries, key=lambda x: x[2])
 
 
 def ensure_plots_dir():
@@ -191,6 +197,18 @@ def save_fig(fig, base_path: str, save_png: bool = True):
             print("PNG export failed — install `kaleido`: pip install kaleido")
 
 
+def make_figure(x, y, title: str, yaxis_title: str) -> go.Figure:
+    fig = go.Figure(go.Scatter(x=x, y=y, mode="lines+markers", name=title))
+    fig.update_layout(
+        title=title,
+        xaxis_title="Time",
+        yaxis_title=yaxis_title,
+        template="plotly_white",
+        hovermode="x unified",
+    )
+    return fig
+
+
 def make_plots(rows: list[Reading], plots_dir: str, display_tz: str = "UTC"):
     if not rows:
         print("No data to plot.")
@@ -200,30 +218,10 @@ def make_plots(rows: list[Reading], plots_dir: str, display_tz: str = "UTC"):
     temperatures = [r.temperature for r in rows]
     humidities = [r.humidity for r in rows]
 
-    fig_t = go.Figure(
-        go.Scatter(
-            x=timestamps, y=temperatures, mode="lines+markers", name="Temperature"
-        )
-    )
-    fig_t.update_layout(
-        title="Temperature",
-        xaxis_title="Time",
-        yaxis_title="Temperature (°C)",
-        template="plotly_white",
-        hovermode="x unified",
-    )
+    fig_t = make_figure(timestamps, temperatures, "Temperature", "Temperature (°C)")
     save_fig(fig_t, os.path.join(plots_dir, "temperature"))
 
-    fig_h = go.Figure(
-        go.Scatter(x=timestamps, y=humidities, mode="lines+markers", name="Humidity")
-    )
-    fig_h.update_layout(
-        title="Humidity",
-        xaxis_title="Time",
-        yaxis_title="Humidity (%)",
-        template="plotly_white",
-        hovermode="x unified",
-    )
+    fig_h = make_figure(timestamps, humidities, "Humidity", "Humidity (%)")
     save_fig(fig_h, os.path.join(plots_dir, "humidity"))
 
 
@@ -236,11 +234,9 @@ def main():
     parser.add_argument(
         "--debug", "-d", action="store_true", help="Show latest reading and exit"
     )
+    parser.add_argument("--tz", default=DEFAULT_TZ, help="Timezone for CLI timestamps")
     parser.add_argument(
-        "--tz", default="America/Chicago", help="Timezone for CLI timestamps"
-    )
-    parser.add_argument(
-        "--display-tz", default="America/Chicago", help="Timezone for plot x-axis"
+        "--display-tz", default=DEFAULT_TZ, help="Timezone for plot x-axis"
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show debug output"
@@ -254,7 +250,7 @@ def main():
     if args.hours is not None:
         tzinfo = tz.gettz(args.tz) or timezone.utc
         now = datetime.now(tzinfo).astimezone(timezone.utc)
-        buffer = timedelta(minutes=30)
+        buffer = timedelta(minutes=QUERY_BUFFER_MINUTES)
         start_dt = now - timedelta(hours=args.hours) - buffer
         end_dt = now + buffer
 
