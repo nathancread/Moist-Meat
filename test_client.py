@@ -8,22 +8,30 @@ plots (HTML) to the `plots/` directory. Attempts to also export PNGs (requires
 open in a browser.
 """
 
+import argparse
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-import argparse
 from typing import cast
 
 import firebase_admin
 from firebase_admin import credentials, db
 from dateutil import tz
-import polars as pl
 import plotly.graph_objects as go
 import plotly.io as pio
 
 DB_REF_PATH = "/sensors/device1"
 SERVICE_ACCOUNT = "moist-meat-monitor-firebase-adminsdk-fbsvc-a2be73f4d8.json"
 DATABASE_URL = "https://moist-meat-monitor-default-rtdb.firebaseio.com/"
+
+
+@dataclass
+class Reading:
+    key: str
+    timestamp: datetime
+    temperature: float | None
+    humidity: float | None
 
 
 def init_firebase():
@@ -79,15 +87,15 @@ def fetch_data(
     start_dt: datetime | None = None,
     end_dt: datetime | None = None,
     verbose: bool = False,
-) -> pl.DataFrame:
+) -> list[Reading]:
     """Fetch sensor data from Firebase, optionally filtered by time range."""
     ref = db.reference(DB_REF_PATH)
     raw = cast(dict, ref.get())
     if not raw:
         print("No data returned from the database.")
-        return pl.DataFrame()
+        return []
 
-    rows = []
+    rows: list[Reading] = []
     skipped = 0
 
     for key, entry in raw.items():
@@ -104,23 +112,22 @@ def fetch_data(
             continue
 
         rows.append(
-            {
-                "key": key,
-                "timestamp": ts_dt,
-                "temperature": entry.get("temperature"),
-                "humidity": entry.get("humidity"),
-            }
+            Reading(
+                key=key,
+                timestamp=ts_dt,
+                temperature=entry.get("temperature"),
+                humidity=entry.get("humidity"),
+            )
         )
 
-    df = pl.DataFrame(rows)
-    if df.is_empty():
-        return df
+    if not rows:
+        return []
 
-    df = df.sort("timestamp")
+    rows.sort(key=lambda r: r.timestamp)
 
     if verbose:
-        first, last = df["timestamp"].min(), df["timestamp"].max()
-        print(f"Fetched {len(df)} rows. Range: {first} -> {last}")
+        first, last = rows[0].timestamp, rows[-1].timestamp
+        print(f"Fetched {len(rows)} rows. Range: {first} -> {last}")
         print(f"Skipped {skipped} entries with invalid timestamps")
 
     if start_dt is None and end_dt is None:
@@ -129,16 +136,16 @@ def fetch_data(
         end_dt = now
 
     if start_dt is not None:
-        df = df.filter(pl.col("timestamp") >= start_dt)
+        rows = [r for r in rows if r.timestamp >= start_dt]
     if end_dt is not None:
-        df = df.filter(pl.col("timestamp") <= end_dt)
+        rows = [r for r in rows if r.timestamp <= end_dt]
 
     if verbose:
-        print(f"Rows after filtering: {len(df)}")
-        if not df.is_empty():
-            print(f"Filtered range: {df['timestamp'].min()} -> {df['timestamp'].max()}")
+        print(f"Rows after filtering: {len(rows)}")
+        if rows:
+            print(f"Filtered range: {rows[0].timestamp} -> {rows[-1].timestamp}")
 
-    return df
+    return rows
 
 
 def get_latest_reading() -> tuple | None:
@@ -184,23 +191,14 @@ def save_fig(fig, base_path: str, save_png: bool = True):
             print("PNG export failed — install `kaleido`: pip install kaleido")
 
 
-def make_plots(df: pl.DataFrame, plots_dir: str, display_tz: str = "UTC"):
-    if df.is_empty():
+def make_plots(rows: list[Reading], plots_dir: str, display_tz: str = "UTC"):
+    if not rows:
         print("No data to plot.")
         return
 
-    try:
-        df = df.with_columns(
-            pl.col("timestamp")
-            .dt.replace_time_zone("UTC")
-            .dt.convert_time_zone(display_tz)
-        )
-    except Exception:
-        print(f"Warning: failed to convert to '{display_tz}'. Using raw timestamps.")
-
-    timestamps = df["timestamp"].to_list()
-    temperatures = df["temperature"].to_list()
-    humidities = df["humidity"].to_list()
+    timestamps = [r.timestamp for r in rows]
+    temperatures = [r.temperature for r in rows]
+    humidities = [r.humidity for r in rows]
 
     fig_t = go.Figure(
         go.Scatter(
@@ -275,19 +273,19 @@ def main():
         print(f"  humidity: {entry.get('humidity')}")
         sys.exit(0)
 
-    df = fetch_data(start_dt, end_dt, verbose=args.verbose)
+    rows = fetch_data(start_dt, end_dt, verbose=args.verbose)
 
-    if df.is_empty() and (args.start or args.end):
+    if not rows and (args.start or args.end):
         print("Retrying with local timezone interpretation...")
         start_dt = parse_cli_timestamp(args.start, None)
         end_dt = parse_cli_timestamp(args.end, None)
-        df = fetch_data(start_dt, end_dt, verbose=args.verbose)
+        rows = fetch_data(start_dt, end_dt, verbose=args.verbose)
 
-    if df.is_empty():
+    if not rows:
         print("No data matched the requested time range.")
         sys.exit(1)
 
-    make_plots(df, ensure_plots_dir(), args.display_tz or args.tz)
+    make_plots(rows, ensure_plots_dir(), args.display_tz or args.tz)
 
 
 if __name__ == "__main__":
