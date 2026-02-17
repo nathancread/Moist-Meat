@@ -11,8 +11,9 @@ open in a browser.
 import os
 import sys
 from datetime import datetime, timedelta, timezone
-
 import argparse
+from typing import cast
+
 import firebase_admin
 from firebase_admin import credentials, db
 from dateutil import tz
@@ -81,7 +82,7 @@ def fetch_data(
 ) -> pl.DataFrame:
     """Fetch sensor data from Firebase, optionally filtered by time range."""
     ref = db.reference(DB_REF_PATH)
-    raw = ref.get()
+    raw = cast(dict, ref.get())
     if not raw:
         print("No data returned from the database.")
         return pl.DataFrame()
@@ -143,7 +144,7 @@ def fetch_data(
 def get_latest_reading() -> tuple | None:
     """Get the most recent sensor reading."""
     ref = db.reference(DB_REF_PATH)
-    raw = ref.get()
+    raw = cast(dict, ref.get())
     if not raw:
         return None
 
