@@ -3,11 +3,14 @@ name = "moist-meat"
 version = "0.1.0"
 dependencies = [
     "firebase-admin",
-    "pandas",
+    "polars",
     "plotly",
     "kaleido",
     "ty",
+    "python-dateutil",
+    "numpy",
 ]
 
 [tool.ty]
-
+[tool.ty.rules]
+unresolved-attribute = "ignore"
