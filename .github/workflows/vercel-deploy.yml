@@ -20,15 +20,15 @@ jobs:
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
 
-      - name: Decode Firebase Credentials
-        run: |
-          CREDS=$(echo '${{ secrets.FIREBASE_CREDENTIALS_B64 }}' | base64 -d)
-          echo "FIREBASE_CREDENTIALS_JSON<<EOF" >> .env.production
-          echo "$CREDS" >> .env.production
-          echo "EOF" >> .env.production
-
       - name: Install Vercel CLI
         run: npm install -g vercel
+
+      - name: Set Firebase Secret in Vercel
+        run: |
+          CREDS=$(echo '${{ secrets.FIREBASE_CREDENTIALS_B64 }}' | base64 -d)
+          # Use Vercel CLI to set the secret
+          echo "$CREDS" | vercel secret rm firebase_credentials_json --token=${{ secrets.VERCEL_TOKEN }} --yes 2>/dev/null || true
+          echo "$CREDS" | vercel secret add firebase_credentials_json --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | grep -v "^?"
 
       - name: Pull Vercel environment information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
