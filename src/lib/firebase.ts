@@ -1,6 +1,7 @@
 import { initializeApp, cert, getApps, type App, type ServiceAccount } from 'firebase-admin/app';
 import { getDatabase, type Database } from 'firebase-admin/database';
 import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 const SERVICE_ACCOUNT_PATH = join(
 	process.cwd(),
@@ -9,8 +10,8 @@ const SERVICE_ACCOUNT_PATH = join(
 const DATABASE_URL = 'https://moist-meat-monitor-default-rtdb.firebaseio.com/';
 
 async function loadServiceAccount(): Promise<ServiceAccount> {
-	const file = Bun.file(SERVICE_ACCOUNT_PATH);
-	const config = await file.json();
+	const raw = await readFile(SERVICE_ACCOUNT_PATH, 'utf-8');
+	const config = JSON.parse(raw) as Record<string, string>;
 	return {
 		projectId: config.project_id,
 		privateKey: config.private_key,
@@ -33,11 +34,4 @@ export async function initFirebase(): Promise<{ app: App; database: Database }> 
 		database = getDatabase(app);
 	}
 	return { app: app!, database: database! };
-}
-
-export async function getFirebaseDatabase(): Promise<Database> {
-	if (!database) {
-		await initFirebase();
-	}
-	return database!;
 }

@@ -1,4 +1,5 @@
 import { initFirebase } from '$lib/firebase';
+import { DB_REF_PATH, CUTOFF_DATE } from '$lib/config';
 
 export interface Reading {
 	key: string;
@@ -7,20 +8,23 @@ export interface Reading {
 	humidity: number | null;
 }
 
-const DB_REF_PATH = '/sensors/device1';
+/** Returns a millisecond timestamp, or null if the input cannot be parsed. */
+function parseTimestamp(timestampSeconds: unknown): number | null {
+	const num =
+		typeof timestampSeconds === 'number' ? timestampSeconds : parseFloat(String(timestampSeconds));
+	if (isNaN(num)) return null;
+	return num * 1000;
+}
 
-function parseTimestamp(timestampSeconds: unknown): number {
-	const num = typeof timestampSeconds === 'number' ? timestampSeconds : parseFloat(String(timestampSeconds));
-	return isNaN(num) ? 0 : num * 1000;
+/** Returns the value if it is a finite number, otherwise null. */
+function parseNumeric(value: unknown): number | null {
+	return typeof value === 'number' && isFinite(value) ? value : null;
 }
 
 export async function loadSensorData(): Promise<Reading[]> {
 	const { database } = await initFirebase();
-	if (!database) {
-		throw new Error('Firebase not initialized');
-	}
 
-	const cutoffDateSeconds = Math.floor(new Date('2026-02-16').getTime() / 1000);
+	const cutoffDateSeconds = Math.floor(new Date(CUTOFF_DATE).getTime() / 1000);
 	const ref = database.ref(DB_REF_PATH).orderByChild('timestamp').startAfter(cutoffDateSeconds);
 	const snapshot = await ref.once('value');
 	const raw = snapshot.val();
@@ -29,16 +33,20 @@ export async function loadSensorData(): Promise<Reading[]> {
 		return [];
 	}
 
-	const readings: Reading[] = Object.entries(raw)
+	const readings: Reading[] = Object.entries(raw as Record<string, unknown>)
 		.filter(([, entry]) => typeof entry === 'object' && entry !== null)
-		.map(([key, entry]) => {
+		.flatMap(([key, entry]) => {
 			const typedEntry = entry as Record<string, unknown>;
-			return {
-				key,
-				timestamp: parseTimestamp(typedEntry.timestamp),
-				temperature: typedEntry.temperature as number | null,
-				humidity: typedEntry.humidity as number | null
-			};
+			const timestamp = parseTimestamp(typedEntry.timestamp);
+			if (timestamp === null) return [];
+			return [
+				{
+					key,
+					timestamp,
+					temperature: parseNumeric(typedEntry.temperature),
+					humidity: parseNumeric(typedEntry.humidity)
+				}
+			];
 		});
 
 	readings.sort((a, b) => a.timestamp - b.timestamp);

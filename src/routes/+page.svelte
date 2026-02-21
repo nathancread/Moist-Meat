@@ -1,126 +1,32 @@
 <script lang="ts">
-	import type { PageProps } from './$types';
-	let { data }: PageProps = $props();
 	import { Chart, registerables } from 'chart.js';
+	import { onMount, onDestroy } from 'svelte';
+	import type { PageProps } from './$types';
+	import type { Chart as ChartInstance } from 'chart.js';
+	import { createTemperatureChart, createHumidityChart } from '$lib/charts';
+
 	Chart.register(...registerables);
-	import { onMount, tick } from 'svelte';
 
-	let temperatureCanvas: HTMLCanvasElement;
-	let humidityCanvas: HTMLCanvasElement;
+	let { data }: PageProps = $props();
 
-	onMount(async () => {
-		await tick();
+	let temperatureCanvas: HTMLCanvasElement | undefined = $state();
+	let humidityCanvas: HTMLCanvasElement | undefined = $state();
 
-		// Prepare data from readings
-		const labels = data.readings.map((r) => new Date(r.timestamp).toLocaleString());
-		const temperatureData = data.readings.map((r) => r.temperature);
-		const humidityData = data.readings.map((r) => r.humidity);
+	let tempChart: ChartInstance | undefined;
+	let humidChart: ChartInstance | undefined;
 
-		// Temperature chart
+	onMount(() => {
 		if (temperatureCanvas) {
-			const ctx = temperatureCanvas.getContext('2d');
-			if (ctx) {
-				const temperatureAnnotationPlugin = {
-					id: 'temperatureAnnotations',
-					afterDatasetsDraw(chart: any) {
-						const yScale = chart.scales.y;
-						const ctx = chart.ctx;
-
-						// Dangerous thresholds for prosciutto curing
-						const tooWarmTemp = 4; // °C - Risk of spoilage
-
-						// Draw "Too Warm" line
-						const warmY = yScale.getPixelForValue(tooWarmTemp);
-						ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-						ctx.lineWidth = 2;
-						ctx.setLineDash([5, 5]);
-						ctx.beginPath();
-						ctx.moveTo(chart.chartArea.left, warmY);
-						ctx.lineTo(chart.chartArea.right, warmY);
-						ctx.stroke();
-
-						// Label for "Too Warm" (inside right side)
-						ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-						ctx.font = '12px sans-serif';
-						ctx.textAlign = 'right';
-						ctx.fillText(`Too Warm (${tooWarmTemp}°C)`, chart.chartArea.right - 5, warmY - 5);
-
-						ctx.setLineDash([]);
-					}
-				};
-
-				new Chart(ctx, {
-					type: 'line',
-					data: {
-						labels,
-						datasets: [
-							{
-								label: 'Temperature (°C)',
-								borderColor: 'rgb(255, 99, 132)',
-								backgroundColor: 'rgba(255, 99, 132, 0.1)',
-								data: temperatureData,
-								borderWidth: 2,
-								pointRadius: 0
-							}
-						]
-					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							y: {
-								min: 0,
-								max: 30
-							}
-						},
-						plugins: {
-							legend: {
-								display: true
-							}
-						}
-					},
-					plugins: [temperatureAnnotationPlugin]
-				});
-			}
+			tempChart = createTemperatureChart(temperatureCanvas, data.readings);
 		}
-
-		// Humidity chart
 		if (humidityCanvas) {
-			const ctx = humidityCanvas.getContext('2d');
-			if (ctx) {
-				new Chart(ctx, {
-					type: 'line',
-					data: {
-						labels,
-						datasets: [
-							{
-								label: 'Humidity (%)',
-								borderColor: 'rgb(54, 162, 235)',
-								backgroundColor: 'rgba(54, 162, 235, 0.1)',
-								data: humidityData,
-								borderWidth: 2,
-								pointRadius: 0
-							}
-						]
-					},
-					options: {
-						responsive: true,
-						maintainAspectRatio: false,
-						scales: {
-							y: {
-								min: 0,
-								max: 100
-							}
-						},
-						plugins: {
-							legend: {
-								display: true
-							}
-						}
-					}
-				});
-			}
+			humidChart = createHumidityChart(humidityCanvas, data.readings);
 		}
+	});
+
+	onDestroy(() => {
+		tempChart?.destroy();
+		humidChart?.destroy();
 	});
 </script>
 
