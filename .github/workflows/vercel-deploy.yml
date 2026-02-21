@@ -20,6 +20,9 @@ jobs:
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
 
+      - name: Write Firebase Credentials
+        run: echo "${{ secrets.FIREBASE_CREDENTIALS_B64 }}" | base64 -d > moist-meat-monitor-firebase-adminsdk-fbsvc-a2be73f4d8.json
+
       - name: Install Vercel CLI
         run: npm install -g vercel
 
