@@ -9,9 +9,9 @@ export interface Reading {
 
 const DB_REF_PATH = '/sensors/device1';
 
-function parseTimestamp(ts: unknown): number {
-	const num = typeof ts === 'number' ? ts : parseFloat(String(ts));
-	return isNaN(num) ? 0 : num;
+function parseTimestamp(timestampSeconds: unknown): number {
+	const num = typeof timestampSeconds === 'number' ? timestampSeconds : parseFloat(String(timestampSeconds));
+	return isNaN(num) ? 0 : num * 1000;
 }
 
 export async function loadSensorData(): Promise<Reading[]> {
@@ -20,7 +20,8 @@ export async function loadSensorData(): Promise<Reading[]> {
 		throw new Error('Firebase not initialized');
 	}
 
-	const ref = database.ref(DB_REF_PATH);
+	const cutoffDateSeconds = Math.floor(new Date('2026-02-16').getTime() / 1000);
+	const ref = database.ref(DB_REF_PATH).orderByChild('timestamp').startAfter(cutoffDateSeconds);
 	const snapshot = await ref.once('value');
 	const raw = snapshot.val();
 
