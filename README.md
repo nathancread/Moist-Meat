@@ -1,42 +1,133 @@
-# sv
+# Moist Meat
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A real-time temperature and humidity monitoring dashboard built with SvelteKit. Stream live sensor data from Firebase and visualize it with interactive charts.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Live Data Streaming**: Real-time updates via Server-Sent Events (SSE) from Firebase Realtime Database
+- **Interactive Charts**: Temperature and humidity visualizations using Chart.js
+- **Historical Data**: Load and display past readings from a configurable date
+- **Server-side Logging**: Comprehensive logging with Pino for debugging and monitoring
 
-```sh
-# create a new project
-npx sv create my-app
+## Tech Stack
+
+- **Frontend**: Svelte 5 with TypeScript
+- **Backend**: SvelteKit with Node.js
+- **Build Tool**: Vite
+- **Database**: Firebase Realtime Database
+- **Charts**: Chart.js
+- **Code Quality**: ESLint + Prettier
+- **Deployment**: Vercel
+
+## Getting Started
+
+### Prerequisites
+
+- Bun (or npm/yarn/pnpm)
+- Firebase account with Realtime Database configured
+
+### Installation
+
+```bash
+# Install dependencies
+bun install
 ```
 
-To recreate this project with the same configuration:
+### Development
 
-```sh
-# recreate this project
-bun x sv create --template minimal --types ts --add prettier eslint --install bun .
+```bash
+# Start development server
+bun run dev
+
+# Open in browser
+bun run dev -- --open
 ```
 
-## Developing
+The app will be available at `http://localhost:5173`.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### Building for Production
 
-```sh
-npm run dev
+```bash
+# Build the app
+bun run build
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+# Preview production build
+bun run preview
 ```
 
-## Building
+## Configuration
 
-To create a production version of your app:
+Create a `.env.local` file with your Firebase configuration:
 
-```sh
-npm run build
+```
+# Firebase Admin SDK key (for server-side use)
+FIREBASE_KEY=your_firebase_key
+
+# Database reference path
+DB_REF_PATH=/sensors/device1
+
+# Cutoff date for loading historical data
+CUTOFF_DATE=2024-01-01
 ```
 
-You can preview the production build with `npm run preview`.
+## API Routes
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+### `GET /stream`
+
+Server-Sent Events endpoint that streams new sensor readings in real-time.
+
+**Query Parameters:**
+- `since` (optional): Timestamp in milliseconds. Only readings strictly after this timestamp are streamed.
+
+**Response Format:**
+```json
+{
+  "key": "reading_id",
+  "timestamp": 1704067200000,
+  "temperature": 22.5,
+  "humidity": 45.3
+}
+```
+
+## Code Quality
+
+```bash
+# Check code with svelte-check and ESLint
+bun run check
+
+# Watch mode
+bun run check:watch
+
+# Format with Prettier
+bun run format
+
+# Lint with ESLint
+bun run lint
+```
+
+## Project Structure
+
+```
+src/
+├── lib/
+│   ├── charts.ts       # Chart.js configuration
+│   ├── config.ts       # Environment configuration
+│   ├── firebase.ts     # Firebase initialization
+│   ├── logger.ts       # Pino logger setup
+│   └── sensor.ts       # Sensor data loading logic
+├── routes/
+│   ├── +layout.svelte  # Root layout
+│   ├── +page.svelte    # Main dashboard
+│   ├── +page.server.ts # Server-side data loading
+│   └── stream/
+│       └── +server.ts  # SSE endpoint
+└── app.d.ts            # Global type definitions
+```
+
+## Deployment
+
+This project is configured for Vercel deployment. Push to your repository and connect it to Vercel for automatic deployments.
+
+## License
+
+MIT
