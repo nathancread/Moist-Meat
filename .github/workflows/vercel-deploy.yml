@@ -21,7 +21,11 @@ jobs:
         uses: oven-sh/setup-bun@v1
 
       - name: Decode Firebase Credentials
-        run: echo "FIREBASE_CREDENTIALS_JSON=$(echo '${{ secrets.FIREBASE_CREDENTIALS_B64 }}' | base64 -d)" >> $GITHUB_ENV
+        run: |
+          CREDS=$(echo '${{ secrets.FIREBASE_CREDENTIALS_B64 }}' | base64 -d)
+          echo "FIREBASE_CREDENTIALS_JSON<<EOF" >> $GITHUB_ENV
+          echo "$CREDS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Install Vercel CLI
         run: npm install -g vercel
