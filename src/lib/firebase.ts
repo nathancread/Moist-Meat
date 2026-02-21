@@ -11,8 +11,18 @@ const SERVICE_ACCOUNT_PATH = join(
 const DATABASE_URL = 'https://moist-meat-monitor-default-rtdb.firebaseio.com/';
 
 async function loadServiceAccount(): Promise<ServiceAccount> {
-	logger.debug({ path: SERVICE_ACCOUNT_PATH }, 'Loading Firebase service account');
-	const raw = await readFile(SERVICE_ACCOUNT_PATH, 'utf-8');
+	let raw: string;
+
+	// Try to load from environment variable first (for Vercel)
+	if (process.env.FIREBASE_CREDENTIALS_JSON) {
+		logger.debug('Loading Firebase service account from environment variable');
+		raw = process.env.FIREBASE_CREDENTIALS_JSON;
+	} else {
+		// Fall back to file (for local development)
+		logger.debug({ path: SERVICE_ACCOUNT_PATH }, 'Loading Firebase service account from file');
+		raw = await readFile(SERVICE_ACCOUNT_PATH, 'utf-8');
+	}
+
 	const config = JSON.parse(raw) as Record<string, string>;
 	logger.debug('Firebase service account loaded successfully');
 	return {

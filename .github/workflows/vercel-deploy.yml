@@ -20,22 +20,35 @@ jobs:
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
 
-      - name: Write Firebase Credentials
-        run: echo "${{ secrets.FIREBASE_CREDENTIALS_B64 }}" | base64 -d > moist-meat-monitor-firebase-adminsdk-fbsvc-a2be73f4d8.json
+      - name: Decode Firebase Credentials
+        run: echo "FIREBASE_CREDENTIALS_JSON=$(echo '${{ secrets.FIREBASE_CREDENTIALS_B64 }}' | base64 -d)" >> $GITHUB_ENV
 
       - name: Install Vercel CLI
         run: npm install -g vercel
 
       - name: Pull Vercel environment information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ env.FIREBASE_CREDENTIALS_JSON }}
+
+      - name: Set Vercel Environment Variable
+        run: vercel env add FIREBASE_CREDENTIALS_JSON "$FIREBASE_CREDENTIALS_JSON" production --token=${{ secrets.VERCEL_TOKEN }} --yes || true
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ env.FIREBASE_CREDENTIALS_JSON }}
 
       - name: Build Project Artifacts
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ env.FIREBASE_CREDENTIALS_JSON }}
 
       - name: Deploy Project Artifacts to Vercel
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         if: github.event_name == 'push'
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ env.FIREBASE_CREDENTIALS_JSON }}
 
       - name: Deploy Preview to Vercel
         run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
         if: github.event_name == 'pull_request'
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ env.FIREBASE_CREDENTIALS_JSON }}
