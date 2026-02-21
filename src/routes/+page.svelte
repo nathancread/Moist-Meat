@@ -15,6 +15,14 @@
 	let tempChart: ChartInstance | undefined;
 	let humidChart: ChartInstance | undefined;
 
+	// Track consecutive parse errors to limit reconnection attempts
+	let consecutiveErrors = 0;
+	const MAX_CONSECUTIVE_ERRORS = 5;
+
+	// Keep chart data bounded to prevent memory leaks
+	// Only show the last 1000 data points
+	const MAX_DATA_POINTS = 1000;
+
 	function updateChartsWithReading(reading: {
 		key: string;
 		timestamp: number;
@@ -24,15 +32,29 @@
 		console.log('Received new data point from Firebase!');
 		const label = new Date(reading.timestamp).toLocaleString();
 
-		if (tempChart) {
-			tempChart.data.labels?.push(label);
+		if (tempChart && tempChart.data.labels && Array.isArray(tempChart.data.datasets[0]?.data)) {
+			tempChart.data.labels.push(label);
 			tempChart.data.datasets[0].data.push(reading.temperature);
+
+			// Prune old data to prevent memory leaks
+			if (tempChart.data.labels.length > MAX_DATA_POINTS) {
+				tempChart.data.labels.shift();
+				tempChart.data.datasets[0].data.shift();
+			}
+
 			tempChart.update();
 		}
 
-		if (humidChart) {
-			humidChart.data.labels?.push(label);
+		if (humidChart && humidChart.data.labels && Array.isArray(humidChart.data.datasets[0]?.data)) {
+			humidChart.data.labels.push(label);
 			humidChart.data.datasets[0].data.push(reading.humidity);
+
+			// Prune old data to prevent memory leaks
+			if (humidChart.data.labels.length > MAX_DATA_POINTS) {
+				humidChart.data.labels.shift();
+				humidChart.data.datasets[0].data.shift();
+			}
+
 			humidChart.update();
 		}
 	}
@@ -56,9 +78,20 @@
 		eventSource.addEventListener('message', (event) => {
 			try {
 				const reading = JSON.parse(event.data);
+				consecutiveErrors = 0; // Reset error counter on successful message
 				updateChartsWithReading(reading);
 			} catch (e) {
-				console.error('Failed to parse SSE message:', e);
+				consecutiveErrors++;
+				console.error(
+					`Failed to parse SSE message (error ${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`,
+					e
+				);
+
+				// Close the stream after too many consecutive parse errors
+				if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+					console.error('Too many consecutive parse errors, closing SSE stream');
+					eventSource.close();
+				}
 			}
 		});
 
@@ -68,6 +101,18 @@
 			// permanent failure (EventSource.CLOSED state).
 			if (eventSource.readyState === EventSource.CLOSED) {
 				console.error('SSE stream permanently closed', event);
+			} else {
+				consecutiveErrors++;
+				console.warn(
+					`SSE connection error (error ${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`,
+					event
+				);
+
+				// Close the stream after too many consecutive errors
+				if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+					console.error('Too many consecutive connection errors, closing SSE stream');
+					eventSource.close();
+				}
 			}
 		});
 

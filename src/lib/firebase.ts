@@ -1,12 +1,16 @@
 import { initializeApp, cert, getApps, type App, type ServiceAccount } from 'firebase-admin/app';
 import { getDatabase, type Database } from 'firebase-admin/database';
 import logger from './logger';
+import { requireEnv } from './utils';
 
 const DATABASE_URL = 'https://moist-meat-monitor-default-rtdb.firebaseio.com/';
 
 async function loadServiceAccount(): Promise<ServiceAccount> {
-	logger.debug('Loading Firebase service account from FIREBASE_CREDENTIALS_B64 environment variable');
-	const raw = Buffer.from(process.env.FIREBASE_CREDENTIALS_B64!, 'base64').toString('utf-8');
+	logger.debug(
+		'Loading Firebase service account from FIREBASE_CREDENTIALS_B64 environment variable'
+	);
+	const credentialsB64 = requireEnv('FIREBASE_CREDENTIALS_B64');
+	const raw = Buffer.from(credentialsB64, 'base64').toString('utf-8');
 	const config = JSON.parse(raw) as Record<string, string>;
 	logger.debug('Firebase service account loaded successfully');
 	return {
@@ -33,5 +37,10 @@ export async function initFirebase(): Promise<{ app: App; database: Database }> 
 		database = getDatabase(app);
 		logger.info({ databaseURL: DATABASE_URL }, 'Firebase app initialized successfully');
 	}
-	return { app: app!, database: database! };
+
+	if (!app || !database) {
+		throw new Error('Firebase initialization failed: app or database is undefined');
+	}
+
+	return { app, database };
 }

@@ -1,33 +1,20 @@
 import { initFirebase } from '$lib/firebase';
 import { DB_REF_PATH, CUTOFF_DATE } from '$lib/config';
 import logger from '$lib/logger';
+import { parseTimestampSeconds, parseNumeric } from '$lib/utils';
+import type { Reading, FirebaseReading } from '$lib/types';
 
-export interface Reading {
-	key: string;
-	timestamp: number;
-	temperature: number | null;
-	humidity: number | null;
-}
-
-/** Returns a millisecond timestamp, or null if the input cannot be parsed. */
-function parseTimestamp(timestampSeconds: unknown): number | null {
-	const num =
-		typeof timestampSeconds === 'number' ? timestampSeconds : parseFloat(String(timestampSeconds));
-	if (isNaN(num)) return null;
-	return num * 1000;
-}
-
-/** Returns the value if it is a finite number, otherwise null. */
-function parseNumeric(value: unknown): number | null {
-	return typeof value === 'number' && isFinite(value) ? value : null;
-}
+export type { Reading } from '$lib/types';
 
 export async function loadSensorData(): Promise<Reading[]> {
 	logger.info('Loading sensor data from Firebase');
 	const { database } = await initFirebase();
 
 	const cutoffDateSeconds = Math.floor(new Date(CUTOFF_DATE).getTime() / 1000);
-	logger.debug({ path: DB_REF_PATH, cutoffDate: CUTOFF_DATE, cutoffDateSeconds }, 'Querying sensor data');
+	logger.debug(
+		{ path: DB_REF_PATH, cutoffDate: CUTOFF_DATE, cutoffDateSeconds },
+		'Querying sensor data'
+	);
 	const ref = database.ref(DB_REF_PATH).orderByChild('timestamp').startAfter(cutoffDateSeconds);
 	const snapshot = await ref.once('value');
 	const raw = snapshot.val();
@@ -40,8 +27,8 @@ export async function loadSensorData(): Promise<Reading[]> {
 	const readings: Reading[] = Object.entries(raw as Record<string, unknown>)
 		.filter(([, entry]) => typeof entry === 'object' && entry !== null)
 		.flatMap(([key, entry]) => {
-			const typedEntry = entry as Record<string, unknown>;
-			const timestamp = parseTimestamp(typedEntry.timestamp);
+			const typedEntry = entry as FirebaseReading;
+			const timestamp = parseTimestampSeconds(typedEntry.timestamp);
 			if (timestamp === null) return [];
 			return [
 				{

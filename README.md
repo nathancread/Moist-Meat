@@ -77,15 +77,17 @@ CUTOFF_DATE=2024-01-01
 Server-Sent Events endpoint that streams new sensor readings in real-time.
 
 **Query Parameters:**
+
 - `since` (optional): Timestamp in milliseconds. Only readings strictly after this timestamp are streamed.
 
 **Response Format:**
+
 ```json
 {
-  "key": "reading_id",
-  "timestamp": 1704067200000,
-  "temperature": 22.5,
-  "humidity": 45.3
+	"key": "reading_id",
+	"timestamp": 1704067200000,
+	"temperature": 22.5,
+	"humidity": 45.3
 }
 ```
 

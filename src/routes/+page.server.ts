@@ -11,7 +11,10 @@ export const load: PageServerLoad = async () => {
 		return { readings };
 	} catch (e) {
 		const message = e instanceof Error ? e.message : 'Unknown error loading sensor data';
-		logger.error({ error: e, message }, 'Failed to load page data');
-		error(500, { message });
+		const details = e instanceof Error ? e.stack : String(e);
+		logger.error({ error: e, message, details }, 'Failed to load page data');
+		error(500, {
+			message: 'Failed to load sensor data. Please try again later.'
+		});
 	}
 };
