@@ -15,6 +15,28 @@
 	let tempChart: ChartInstance | undefined;
 	let humidChart: ChartInstance | undefined;
 
+	function updateChartsWithReading(reading: {
+		key: string;
+		timestamp: number;
+		temperature: number | null;
+		humidity: number | null;
+	}): void {
+		console.log('Received new data point from Firebase!');
+		const label = new Date(reading.timestamp).toLocaleString();
+
+		if (tempChart) {
+			tempChart.data.labels?.push(label);
+			tempChart.data.datasets[0].data.push(reading.temperature);
+			tempChart.update();
+		}
+
+		if (humidChart) {
+			humidChart.data.labels?.push(label);
+			humidChart.data.datasets[0].data.push(reading.humidity);
+			humidChart.update();
+		}
+	}
+
 	onMount(() => {
 		if (temperatureCanvas) {
 			tempChart = createTemperatureChart(temperatureCanvas, data.readings);
@@ -22,6 +44,38 @@
 		if (humidityCanvas) {
 			humidChart = createHumidityChart(humidityCanvas, data.readings);
 		}
+
+		// Compute the latest timestamp from the initial load.
+		// data.readings is sorted ascending, so the last element is newest.
+		const latestTimestamp =
+			data.readings.length > 0 ? data.readings[data.readings.length - 1].timestamp : 0;
+
+		// Open the SSE connection, passing the latest timestamp.
+		const eventSource = new EventSource(`/stream?since=${latestTimestamp}`);
+
+		eventSource.addEventListener('message', (event) => {
+			try {
+				const reading = JSON.parse(event.data);
+				updateChartsWithReading(reading);
+			} catch (e) {
+				console.error('Failed to parse SSE message:', e);
+			}
+		});
+
+		eventSource.addEventListener('error', (event) => {
+			// EventSource auto-reconnects on network errors.
+			// Log for debugging but do not close here unless it is a
+			// permanent failure (EventSource.CLOSED state).
+			if (eventSource.readyState === EventSource.CLOSED) {
+				console.error('SSE stream permanently closed', event);
+			}
+		});
+
+		// Return a cleanup function from onMount.
+		// Svelte calls this when the component is destroyed.
+		return () => {
+			eventSource.close();
+		};
 	});
 
 	onDestroy(() => {
