@@ -1,5 +1,1 @@
-{
-  "env": {
-    "FIREBASE_CREDENTIALS_JSON": "@firebase_credentials_json"
-  }
-}
+{}

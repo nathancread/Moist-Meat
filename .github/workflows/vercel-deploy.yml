@@ -23,12 +23,8 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
 
-      - name: Set Firebase Secret in Vercel
-        run: |
-          CREDS=$(echo '${{ secrets.FIREBASE_CREDENTIALS_B64 }}' | base64 -d)
-          # Use Vercel CLI to set the secret
-          echo "$CREDS" | vercel secret rm firebase_credentials_json --token=${{ secrets.VERCEL_TOKEN }} --yes 2>/dev/null || true
-          echo "$CREDS" | vercel secret add firebase_credentials_json --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | grep -v "^?"
+      - name: Store Firebase Credentials
+        run: echo "FIREBASE_CREDENTIALS_B64=${{ secrets.FIREBASE_CREDENTIALS_B64 }}" >> .env.production
 
       - name: Pull Vercel environment information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
