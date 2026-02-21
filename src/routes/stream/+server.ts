@@ -1,4 +1,5 @@
 import { initFirebase } from '$lib/firebase';
+import logger from '$lib/logger';
 import type { DataSnapshot } from 'firebase-admin/database';
 import type { RequestHandler } from './$types';
 
@@ -9,6 +10,8 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	// Convert to seconds because that is what Firebase stores.
 	const sinceSeconds = Math.floor(sinceMs / 1000);
+
+	logger.info({ sinceMs, sinceSeconds }, 'SSE stream connection established');
 
 	// Get the Admin SDK database reference.
 	const { database } = await initFirebase();
@@ -39,11 +42,14 @@ export const GET: RequestHandler = async ({ url }) => {
 					humidity: val.humidity ?? null
 				};
 
+				logger.debug({ key: reading.key, timestamp: reading.timestamp }, 'Streaming sensor reading');
+
 				// Format as SSE. Each event must end with \n\n.
 				const payload = `data: ${JSON.stringify(reading)}\n\n`;
 				try {
 					controller.enqueue(new TextEncoder().encode(payload));
-				} catch {
+				} catch (e) {
+					logger.debug({ error: e }, 'Failed to enqueue SSE message');
 					// Controller already closed (client disconnected).
 				}
 			};
@@ -52,6 +58,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 			// Store the cleanup function for use in `cancel`.
 			firebaseUnsubscribe = () => ref.off('child_added', handler);
+			logger.debug('Firebase listener attached');
 		},
 
 		cancel() {
@@ -60,6 +67,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			if (firebaseUnsubscribe) {
 				firebaseUnsubscribe();
 				firebaseUnsubscribe = null;
+				logger.info('SSE stream connection closed, Firebase listener detached');
 			}
 		}
 	});

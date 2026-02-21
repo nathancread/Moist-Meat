@@ -1,5 +1,6 @@
 import { initFirebase } from '$lib/firebase';
 import { DB_REF_PATH, CUTOFF_DATE } from '$lib/config';
+import logger from '$lib/logger';
 
 export interface Reading {
 	key: string;
@@ -22,14 +23,17 @@ function parseNumeric(value: unknown): number | null {
 }
 
 export async function loadSensorData(): Promise<Reading[]> {
+	logger.info('Loading sensor data from Firebase');
 	const { database } = await initFirebase();
 
 	const cutoffDateSeconds = Math.floor(new Date(CUTOFF_DATE).getTime() / 1000);
+	logger.debug({ path: DB_REF_PATH, cutoffDate: CUTOFF_DATE, cutoffDateSeconds }, 'Querying sensor data');
 	const ref = database.ref(DB_REF_PATH).orderByChild('timestamp').startAfter(cutoffDateSeconds);
 	const snapshot = await ref.once('value');
 	const raw = snapshot.val();
 
 	if (!raw) {
+		logger.info('No sensor data found after cutoff date');
 		return [];
 	}
 
@@ -51,5 +55,6 @@ export async function loadSensorData(): Promise<Reading[]> {
 
 	readings.sort((a, b) => a.timestamp - b.timestamp);
 
+	logger.info({ count: readings.length }, 'Sensor data loaded successfully');
 	return readings;
 }
