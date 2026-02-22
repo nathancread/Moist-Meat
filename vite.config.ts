@@ -8,8 +8,9 @@ export default defineConfig({
 	},
 	plugins: [
 		sentrySvelteKit({
-			org: 'gabriel-w6',
-			project: 'moist-meat'
+			org: process.env.SENTRY_ORG || 'gabriel-w6',
+			project: process.env.SENTRY_PROJECT || 'moist-meat',
+			authToken: process.env.SENTRY_AUTH_TOKEN
 		}),
 		sveltekit()
 	]
