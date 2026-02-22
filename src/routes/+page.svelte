@@ -15,6 +15,30 @@
 	let tempChart: ChartInstance | undefined;
 	let humidChart: ChartInstance | undefined;
 
+	// Update charts when filter changes
+	$effect(() => {
+		const _filter = data.filter; // Track filter changes
+		if (!tempChart || !humidChart) return;
+
+		console.log('Filter changed to:', _filter, 'readings:', data.readings.length);
+		// Just update the chart data without destroying
+		if (tempChart.data.labels && Array.isArray(tempChart.data.datasets[0]?.data)) {
+			const labels = data.readings.map((r) => new Date(r.timestamp).toLocaleString());
+			const temps = data.readings.map((r) => (r as any).temperature);
+			tempChart.data.labels = labels;
+			tempChart.data.datasets[0].data = temps;
+			tempChart.update();
+		}
+
+		if (humidChart.data.labels && Array.isArray(humidChart.data.datasets[0]?.data)) {
+			const labels = data.readings.map((r) => new Date(r.timestamp).toLocaleString());
+			const humidities = data.readings.map((r) => (r as any).humidity);
+			humidChart.data.labels = labels;
+			humidChart.data.datasets[0].data = humidities;
+			humidChart.update();
+		}
+	});
+
 	// Track consecutive parse errors to limit reconnection attempts
 	let consecutiveErrors = 0;
 	const MAX_CONSECUTIVE_ERRORS = 5;
@@ -129,6 +153,12 @@
 	});
 </script>
 
+<div class="filter-links">
+	<a href="/?filter=all" class:active={data.filter === 'all'}>All Time</a>
+	<a href="/?filter=1d" class:active={data.filter === '1d'}>1 Day</a>
+	<a href="/?filter=1h" class:active={data.filter === '1h'}>1 Hour</a>
+</div>
+
 <div class="charts-container">
 	<div>
 		<h2>Temperature Over Time</h2>
@@ -145,6 +175,28 @@
 </div>
 
 <style>
+	.filter-links {
+		display: flex;
+		gap: 1rem;
+		margin-bottom: 2rem;
+		font-size: 0.95rem;
+	}
+
+	.filter-links a {
+		color: #0066cc;
+		text-decoration: none;
+		transition: all 0.2s ease;
+	}
+
+	.filter-links a:hover {
+		text-decoration: underline;
+	}
+
+	.filter-links a.active {
+		font-weight: bold;
+		text-decoration: underline;
+	}
+
 	.charts-container {
 		display: flex;
 		flex-direction: column;
