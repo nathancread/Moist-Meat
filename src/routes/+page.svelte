@@ -24,7 +24,7 @@
 		// Just update the chart data without destroying
 		if (tempChart.data.labels && Array.isArray(tempChart.data.datasets[0]?.data)) {
 			const labels = data.readings.map((r) => new Date(r.timestamp).toLocaleString());
-			const temps = data.readings.map((r) => (r as any).temperature);
+			const temps = data.readings.map((r) => r.temperature);
 			tempChart.data.labels = labels;
 			tempChart.data.datasets[0].data = temps;
 			tempChart.update();
@@ -32,7 +32,7 @@
 
 		if (humidChart.data.labels && Array.isArray(humidChart.data.datasets[0]?.data)) {
 			const labels = data.readings.map((r) => new Date(r.timestamp).toLocaleString());
-			const humidities = data.readings.map((r) => (r as any).humidity);
+			const humidities = data.readings.map((r) => r.humidity);
 			humidChart.data.labels = labels;
 			humidChart.data.datasets[0].data = humidities;
 			humidChart.update();
@@ -152,6 +152,9 @@
 		humidChart?.destroy();
 	});
 </script>
+
+<h1>Sensor Readings</h1>
+<h2>Current Project: <span>Duck Breast Prosciutto</span></h2>
 
 <div class="filter-links">
 	<a href="/?filter=all" class:active={data.filter === 'all'}>All Time</a>

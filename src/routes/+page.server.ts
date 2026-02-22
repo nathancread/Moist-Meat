@@ -2,13 +2,11 @@ import { error } from '@sveltejs/kit';
 import { loadSensorData } from '$lib/sensor';
 import logger from '$lib/logger';
 import type { PageServerLoad } from './$types';
+import type { Reading } from '$lib/types';
 
 type TimeFilter = 'all' | '1h' | '1d';
 
-function filterReadings(
-	readings: Array<{ timestamp: number }>,
-	filter: TimeFilter
-): Array<{ timestamp: number }> {
+function filterReadings(readings: Reading[], filter: TimeFilter): Reading[] {
 	if (filter === 'all') return readings;
 
 	const now = Date.now();
