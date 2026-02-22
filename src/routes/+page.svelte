@@ -156,25 +156,25 @@
 <h1>Sensor Readings</h1>
 <h2>Current Project: <span>Duck Breast Prosciutto</span></h2>
 
-<div class="filter-links">
-	<a href="/?filter=all" class:active={data.filter === 'all'}>All Time</a>
-	<a href="/?filter=1d" class:active={data.filter === '1d'}>1 Day</a>
-	<a href="/?filter=1h" class:active={data.filter === '1h'}>1 Hour</a>
-</div>
+<nav class="filter-links" aria-label="Time filter options">
+	<a href="/?filter=all" class:active={data.filter === 'all'} aria-current={data.filter === 'all' ? 'page' : 'false'}>All Time</a>
+	<a href="/?filter=1d" class:active={data.filter === '1d'} aria-current={data.filter === '1d' ? 'page' : 'false'}>1 Day</a>
+	<a href="/?filter=1h" class:active={data.filter === '1h'} aria-current={data.filter === '1h' ? 'page' : 'false'}>1 Hour</a>
+</nav>
 
 <div class="charts-container">
-	<div>
-		<h2>Temperature Over Time</h2>
+	<section aria-labelledby="temp-heading">
+		<h2 id="temp-heading">Temperature Over Time</h2>
 		<div class="chart-wrapper">
-			<canvas bind:this={temperatureCanvas}></canvas>
+			<canvas bind:this={temperatureCanvas} aria-label="Temperature readings over time chart"></canvas>
 		</div>
-	</div>
-	<div>
-		<h2>Humidity Over Time</h2>
+	</section>
+	<section aria-labelledby="humidity-heading">
+		<h2 id="humidity-heading">Humidity Over Time</h2>
 		<div class="chart-wrapper">
-			<canvas bind:this={humidityCanvas}></canvas>
+			<canvas bind:this={humidityCanvas} aria-label="Humidity readings over time chart"></canvas>
 		</div>
-	</div>
+	</section>
 </div>
 
 <style>
@@ -193,6 +193,12 @@
 
 	.filter-links a:hover {
 		text-decoration: underline;
+	}
+
+	.filter-links a:focus-visible {
+		outline: 2px solid #0066cc;
+		outline-offset: 2px;
+		border-radius: 2px;
 	}
 
 	.filter-links a.active {
