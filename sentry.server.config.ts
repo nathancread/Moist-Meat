@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 
 Sentry.init({
-	dsn: process.env.PUBLIC_SENTRY_DSN,
+	dsn: process.env.SENTRY_DSN,
 
 	// Capture 10% of all server-side transactions for performance monitoring
 	tracesSampleRate: 0.1,

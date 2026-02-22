@@ -1,5 +1,4 @@
 import { handleErrorWithSentry } from '@sentry/sveltekit';
-import * as Sentry from '@sentry/sveltekit';
 
 // The Sentry client config is initialized in sentry.client.config.ts
 
