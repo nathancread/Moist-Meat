@@ -3,8 +3,8 @@ import { TOO_WARM_TEMP_C } from '$lib/config';
 import type { Reading } from '$lib/sensor';
 
 // --- Named color constants ---
-const TEMPERATURE_BORDER = 'rgb(255, 99, 132)';
-const TEMPERATURE_FILL = 'rgba(255, 99, 132, 0.1)';
+const TEMPERATURE_BORDER = 'rgb(255, 159, 64)';
+const TEMPERATURE_FILL = 'rgba(255, 159, 64, 0.1)';
 const HUMIDITY_BORDER = 'rgb(54, 162, 235)';
 const HUMIDITY_FILL = 'rgba(54, 162, 235, 0.1)';
 const THRESHOLD_STROKE = 'rgba(255, 0, 0, 0.5)';
@@ -60,7 +60,6 @@ export function createTemperatureChart(canvas: HTMLCanvasElement, readings: Read
 		options: {
 			responsive: true,
 			maintainAspectRatio: false,
-			scales: { y: { min: 0, max: 30 } },
 			plugins: { legend: { display: true } }
 		},
 		plugins: [temperatureAnnotationPlugin]

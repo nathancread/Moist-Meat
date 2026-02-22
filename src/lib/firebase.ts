@@ -22,13 +22,24 @@ async function loadServiceAccount(): Promise<ServiceAccount> {
 
 let app: App | undefined;
 let database: Database | undefined;
+let initPromise: Promise<{ app: App; database: Database }> | undefined;
 
 export async function initFirebase(): Promise<{ app: App; database: Database }> {
+	// Return cached promise if initialization is already in progress
+	if (initPromise) {
+		return initPromise;
+	}
+
+	// Return existing app if already initialized
 	if (getApps().length > 0) {
 		logger.debug('Firebase app already initialized, reusing existing instance');
 		app = getApps()[0];
 		database = getDatabase(app);
-	} else {
+		return { app, database };
+	}
+
+	// Initialize Firebase (only once, even with concurrent calls)
+	initPromise = (async () => {
 		logger.info('Initializing Firebase app');
 		app = initializeApp({
 			credential: cert(await loadServiceAccount()),
@@ -36,11 +47,13 @@ export async function initFirebase(): Promise<{ app: App; database: Database }> 
 		});
 		database = getDatabase(app);
 		logger.info({ databaseURL: DATABASE_URL }, 'Firebase app initialized successfully');
-	}
 
-	if (!app || !database) {
-		throw new Error('Firebase initialization failed: app or database is undefined');
-	}
+		if (!app || !database) {
+			throw new Error('Firebase initialization failed: app or database is undefined');
+		}
 
-	return { app, database };
+		return { app, database };
+	})();
+
+	return initPromise;
 }
