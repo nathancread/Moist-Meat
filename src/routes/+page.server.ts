@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import * as Sentry from '@sentry/sveltekit';
 import { loadSensorData } from '$lib/sensor';
 import logger from '$lib/logger';
 import type { PageServerLoad } from './$types';
@@ -27,6 +28,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const message = e instanceof Error ? e.message : 'Unknown error loading sensor data';
 		const details = e instanceof Error ? e.stack : String(e);
 		logger.error({ error: e, message, details }, 'Failed to load page data');
+		Sentry.captureException(e);
 		error(500, {
 			message: 'Failed to load sensor data. Please try again later.'
 		});

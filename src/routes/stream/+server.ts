@@ -1,4 +1,5 @@
 import { initFirebase } from '$lib/firebase';
+import * as Sentry from '@sentry/sveltekit';
 import logger from '$lib/logger';
 import { parseTimestampSeconds, parseNumeric } from '$lib/utils';
 import type { DataSnapshot } from 'firebase-admin/database';
@@ -83,6 +84,7 @@ export const GET: RequestHandler = async ({ url }) => {
 				logger.debug('Firebase listener attached');
 			} catch (e) {
 				logger.error({ error: e }, 'Failed to start SSE stream');
+				Sentry.captureException(e);
 				controller.error(new Error('Failed to initialize sensor stream'));
 			}
 		},
