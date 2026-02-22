@@ -166,13 +166,13 @@
 	<section aria-labelledby="temp-heading">
 		<h2 id="temp-heading">Temperature Over Time</h2>
 		<div class="chart-wrapper">
-			<canvas bind:this={temperatureCanvas} aria-label="Temperature readings over time chart"></canvas>
+			<canvas bind:this={temperatureCanvas} aria-label="Chart displaying temperature readings over time. X axis is time, Y axis is temperature (in °C)"></canvas>
 		</div>
 	</section>
 	<section aria-labelledby="humidity-heading">
 		<h2 id="humidity-heading">Humidity Over Time</h2>
 		<div class="chart-wrapper">
-			<canvas bind:this={humidityCanvas} aria-label="Humidity readings over time chart"></canvas>
+			<canvas bind:this={humidityCanvas} aria-label="Chart displaying humidity over time. X axis is time, Y axis is percent residual humidity"></canvas>
 		</div>
 	</section>
 </div>
