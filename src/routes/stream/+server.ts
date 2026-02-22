@@ -73,7 +73,8 @@ export const GET: RequestHandler = async ({ url }) => {
 						const payload = `data: ${JSON.stringify(reading)}\n\n`;
 						controller.enqueue(new TextEncoder().encode(payload));
 					} catch (e) {
-						logger.error({ error: e }, 'Error processing sensor reading');
+						logger.error(e, 'Error processing sensor reading');
+						Sentry.captureException(e);
 					}
 				};
 
@@ -83,7 +84,7 @@ export const GET: RequestHandler = async ({ url }) => {
 				firebaseUnsubscribe = () => ref.off('child_added', handler);
 				logger.debug('Firebase listener attached');
 			} catch (e) {
-				logger.error({ error: e }, 'Failed to start SSE stream');
+				logger.error(e, 'Failed to start SSE stream');
 				Sentry.captureException(e);
 				controller.error(new Error('Failed to initialize sensor stream'));
 			}
