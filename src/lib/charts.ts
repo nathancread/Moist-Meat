@@ -30,7 +30,7 @@ const temperatureAnnotationPlugin: Plugin = {
 		ctx.fillStyle = THRESHOLD_LABEL;
 		ctx.font = '12px sans-serif';
 		ctx.textAlign = 'right';
-		ctx.fillText(`Too Warm (${TOO_WARM_TEMP_C}\u00b0C)`, chart.chartArea.right - 5, warmY - 5);
+		ctx.fillText(`Too Warm (${TOO_WARM_TEMP_C}°C)`, chart.chartArea.right - 5, warmY - 5);
 
 		ctx.setLineDash([]);
 	}
@@ -38,8 +38,16 @@ const temperatureAnnotationPlugin: Plugin = {
 
 // --- Public factory functions ---
 
-export function createTemperatureChart(canvas: HTMLCanvasElement, readings: Reading[]): Chart {
-	const labels = readings.map((r) => new Date(r.timestamp).toLocaleString());
+function formatLabel(timestamp: number, isMobile: boolean): string {
+	const date = new Date(timestamp);
+	if (isMobile) {
+		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	}
+	return date.toLocaleString();
+}
+
+export function createTemperatureChart(canvas: HTMLCanvasElement, readings: Reading[], isMobile: boolean = false): Chart {
+	const labels = readings.map((r) => formatLabel(r.timestamp, isMobile));
 	const tempData = readings.map((r) => r.temperature);
 
 	return new Chart(canvas, {
@@ -48,7 +56,7 @@ export function createTemperatureChart(canvas: HTMLCanvasElement, readings: Read
 			labels,
 			datasets: [
 				{
-					label: 'Temperature (\u00b0C)',
+					label: 'Temperature (°C)',
 					borderColor: TEMPERATURE_BORDER,
 					backgroundColor: TEMPERATURE_FILL,
 					data: tempData,
@@ -60,14 +68,29 @@ export function createTemperatureChart(canvas: HTMLCanvasElement, readings: Read
 		options: {
 			responsive: true,
 			maintainAspectRatio: false,
-			plugins: { legend: { display: true } }
+			plugins: {
+				legend: { display: !isMobile }
+			},
+			scales: {
+				x: {
+					ticks: {
+						maxTicksLimit: isMobile ? 4 : 8,
+						font: { size: isMobile ? 10 : 12 }
+					}
+				},
+				y: {
+					ticks: {
+						font: { size: isMobile ? 10 : 12 }
+					}
+				}
+			}
 		},
 		plugins: [temperatureAnnotationPlugin]
 	});
 }
 
-export function createHumidityChart(canvas: HTMLCanvasElement, readings: Reading[]): Chart {
-	const labels = readings.map((r) => new Date(r.timestamp).toLocaleString());
+export function createHumidityChart(canvas: HTMLCanvasElement, readings: Reading[], isMobile: boolean = false): Chart {
+	const labels = readings.map((r) => formatLabel(r.timestamp, isMobile));
 	const humidData = readings.map((r) => r.humidity);
 
 	return new Chart(canvas, {
@@ -88,8 +111,18 @@ export function createHumidityChart(canvas: HTMLCanvasElement, readings: Reading
 		options: {
 			responsive: true,
 			maintainAspectRatio: false,
-			scales: { y: { min: 0, max: 100 } },
-			plugins: { legend: { display: true } }
+			scales: {
+				y: { min: 0, max: 100 },
+				x: {
+					ticks: {
+						maxTicksLimit: isMobile ? 4 : 8,
+						font: { size: isMobile ? 10 : 12 }
+					}
+				}
+			},
+			plugins: {
+				legend: { display: !isMobile }
+			}
 		}
 	});
 }

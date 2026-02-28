@@ -15,6 +15,16 @@
 	let tempChart: ChartInstance | undefined;
 	let humidChart: ChartInstance | undefined;
 
+	let isMobile = $state(false);
+
+	function formatLabel(timestamp: number): string {
+		const date = new Date(timestamp);
+		if (isMobile) {
+			return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		}
+		return date.toLocaleString();
+	}
+
 	// Update charts when filter changes
 	$effect(() => {
 		const _filter = data.filter; // Track filter changes
@@ -23,7 +33,7 @@
 		console.log('Filter changed to:', _filter, 'readings:', data.readings.length);
 		// Just update the chart data without destroying
 		if (tempChart.data.labels && Array.isArray(tempChart.data.datasets[0]?.data)) {
-			const labels = data.readings.map((r) => new Date(r.timestamp).toLocaleString());
+			const labels = data.readings.map((r) => formatLabel(r.timestamp));
 			const temps = data.readings.map((r) => r.temperature);
 			tempChart.data.labels = labels;
 			tempChart.data.datasets[0].data = temps;
@@ -31,7 +41,7 @@
 		}
 
 		if (humidChart.data.labels && Array.isArray(humidChart.data.datasets[0]?.data)) {
-			const labels = data.readings.map((r) => new Date(r.timestamp).toLocaleString());
+			const labels = data.readings.map((r) => formatLabel(r.timestamp));
 			const humidities = data.readings.map((r) => r.humidity);
 			humidChart.data.labels = labels;
 			humidChart.data.datasets[0].data = humidities;
@@ -54,7 +64,7 @@
 		humidity: number | null;
 	}): void {
 		console.log('Received new data point from Firebase!');
-		const label = new Date(reading.timestamp).toLocaleString();
+		const label = formatLabel(reading.timestamp);
 
 		if (tempChart && tempChart.data.labels && Array.isArray(tempChart.data.datasets[0]?.data)) {
 			tempChart.data.labels.push(label);
@@ -84,11 +94,14 @@
 	}
 
 	onMount(() => {
+		// Detect mobile devices
+		isMobile = window.innerWidth <= 768;
+
 		if (temperatureCanvas) {
-			tempChart = createTemperatureChart(temperatureCanvas, data.readings);
+			tempChart = createTemperatureChart(temperatureCanvas, data.readings, isMobile);
 		}
 		if (humidityCanvas) {
-			humidChart = createHumidityChart(humidityCanvas, data.readings);
+			humidChart = createHumidityChart(humidityCanvas, data.readings, isMobile);
 		}
 
 		// Compute the latest timestamp from the initial load.
@@ -183,6 +196,7 @@
 		gap: 1rem;
 		margin-bottom: 2rem;
 		font-size: 0.95rem;
+		flex-wrap: wrap;
 	}
 
 	.filter-links a {
@@ -215,11 +229,22 @@
 
 	.chart-wrapper {
 		width: 100%;
-		aspect-ratio: 6 / 1 !important;
+		aspect-ratio: 6 / 1;
 	}
 
 	.chart-wrapper canvas {
 		display: block;
 		max-width: 100%;
+	}
+
+	@media (max-width: 768px) {
+		.chart-wrapper {
+			aspect-ratio: 3 / 2;
+		}
+
+		.filter-links {
+			gap: 0.5rem;
+			font-size: 0.85rem;
+		}
 	}
 </style>
